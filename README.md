@@ -65,18 +65,16 @@ docker run --rm -d -p 8000:8000 -e SMA_FAST_PERIOD=2 -e SMA_SLOW_PERIOD=3 --name
 
 Отправьте запрос (4 свечи, ожидаемый сигнал — `BUY`):
 
-```bash
-curl -X POST http://localhost:8000/signals \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "TEST",
-    "candles": [
-      {"timestamp": "2026-01-01T00:00:00Z", "open": 5, "high": 5, "low": 5, "close": 5, "volume": 1},
-      {"timestamp": "2026-01-01T00:01:00Z", "open": 4, "high": 4, "low": 4, "close": 4, "volume": 1},
-      {"timestamp": "2026-01-01T00:02:00Z", "open": 3, "high": 3, "low": 3, "close": 3, "volume": 1},
-      {"timestamp": "2026-01-01T00:03:00Z", "open": 6, "high": 6, "low": 6, "close": 6, "volume": 1}
-    ]
-  }'
+```json
+{
+  "symbol": "TEST",
+  "candles": [
+    {"timestamp": "2026-01-01T00:00:00Z", "open": 5, "high": 5, "low": 5, "close": 5, "volume": 1},
+    {"timestamp": "2026-01-01T00:01:00Z", "open": 4, "high": 4, "low": 4, "close": 4, "volume": 1},
+    {"timestamp": "2026-01-01T00:02:00Z", "open": 3, "high": 3, "low": 3, "close": 3, "volume": 1},
+    {"timestamp": "2026-01-01T00:03:00Z", "open": 6, "high": 6, "low": 6, "close": 6, "volume": 1}
+  ]
+}
 ```
 
 Ожидаемый ответ (HTTP 200):
