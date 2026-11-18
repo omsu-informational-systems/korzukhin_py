@@ -61,6 +61,34 @@ class SmaCrossoverTests(unittest.TestCase):
         self.assertEqual(payload["service"], "sma-crossover-strategy")
         self.assertEqual(payload["version"], "1.0.0")
         self.assertEqual(payload["components"], {})
+        
+    def test_hold_recommendation_mapping(self) -> None:
+        from app.main import CandleEvent, create_hold_recommendation
+        from datetime import datetime, timezone
+
+        test_candle = CandleEvent(
+            eventId="source-uuid-123",
+            correlationId="corr-uuid-456",
+            causationId="cause-uuid-789",
+            runId="run-uuid-000",
+            sequenceNumber=42,
+            symbol="TEST-HOLD",
+            timestamp=datetime(2026, 11, 1, 0, 0, tzinfo=timezone.utc),
+            open=100.0, high=105.0, low=95.0, close=100.0, volume=1000.0
+        )
+
+        recommendation = create_hold_recommendation(
+            test_candle, "test_student", "test_strategy", "test_service"
+        )
+
+        self.assertEqual(recommendation.action, "HOLD")
+        self.assertEqual(recommendation.signal, "HOLD")
+        self.assertEqual(recommendation.confidence, 0.0)
+        self.assertEqual(recommendation.suggestedQuantity, 0.0)
+        self.assertEqual(recommendation.sourceEventId, test_candle.eventId)
+        self.assertEqual(recommendation.correlationId, test_candle.correlationId)
+        self.assertEqual(recommendation.runId, test_candle.runId)
+        self.assertEqual(recommendation.sequenceNumber, test_candle.sequenceNumber)
 
 
 if __name__ == "__main__":

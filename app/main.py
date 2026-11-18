@@ -1,142 +1,102 @@
-import os
-from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Literal
-from uuid import UUID, uuid4
+import json
+import asyncio
+import logging
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 
-import uvicorn
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
-load_dotenv()
-
-SERVICE_NAME = os.getenv("SERVICE_NAME", "sma-crossover-strategy")
-APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+KAFKA_SECRET_KEY = os.getenv("KAFKA_SECRET_KEY", "test-secret")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "sma-crossover-group")
+STUDENT_ID = os.getenv("STUDENT_ID", "student-id")
+STRATEGY_ID = os.getenv("STRATEGY_ID", "sma-crossover")
 
 
-def _read_period(name: str, default: int) -> int:
-    value = os.getenv(name, str(default))
-    try:
-        period = int(value)
-    except ValueError as error:
-        raise ValueError(f"{name} must be a positive integer") from error
-    if period < 1:
-        raise ValueError(f"{name} must be a positive integer")
-    return period
+class RegistrationRequest(BaseModel):
+    schemaVersion: int = 1
+    secretKey: str
+    studentId: str
+    strategyId: str
+    serviceId: str
 
 
-PORT = _read_period("PORT", 8000)
-SMA_FAST_PERIOD = _read_period("SMA_FAST_PERIOD", 10)
-SMA_SLOW_PERIOD = _read_period("SMA_SLOW_PERIOD", 30)
-if SMA_FAST_PERIOD >= SMA_SLOW_PERIOD:
-    raise ValueError("SMA_FAST_PERIOD must be less than SMA_SLOW_PERIOD")
+class RegistrationResult(BaseModel):
+    schemaVersion: int = 1
+    isSuccessful: bool
+    reason: str | None = None
 
 
-class Candle(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
+kafka_status = "DOWN"
+error_details = "Not connected"
 
-    timestamp: datetime
-    open: float = Field(gt=0)
-    high: float = Field(gt=0)
-    low: float = Field(gt=0)
-    close: float = Field(gt=0)
-    volume: float = Field(ge=0)
-
-    @field_validator("timestamp")
-    @classmethod
-    def timestamp_must_include_timezone(cls, value: datetime) -> datetime:
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("timestamp must include a timezone")
-        return value
-
-    @model_validator(mode="after")
-    def validate_ohlc(self) -> "Candle":
-        if self.low > min(self.open, self.close):
-            raise ValueError("low must not exceed open or close")
-        if self.high < max(self.open, self.close):
-            raise ValueError("high must not be less than open or close")
-        if self.low > self.high:
-            raise ValueError("low must not exceed high")
-        return self
-
-
-class SignalRequest(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
-    symbol: str = Field(min_length=1, max_length=50)
-    candles: list[Candle] = Field(min_length=1)
-
-    @field_validator("symbol")
-    @classmethod
-    def symbol_must_not_be_blank(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("symbol must not be blank")
-        return normalized
-
-    @field_validator("candles")
-    @classmethod
-    def candles_must_be_chronological(cls, candles: list[Candle]) -> list[Candle]:
-        if any(
-            current.timestamp <= previous.timestamp
-            for previous, current in zip(candles, candles[1:])
-        ):
-            raise ValueError("candles must be ordered by strictly increasing timestamp")
-        return candles
-
-
-class SignalResponse(BaseModel):
-    signal_id: UUID
-    symbol: str
-    action: Literal["BUY", "SELL", "HOLD"]
-    timestamp: datetime
-    confidence: float = Field(ge=0, le=1)
-    fast_sma: float
-    slow_sma: float
-
-
-def calculate_signal(
-    request: SignalRequest,
-    fast_period: int = SMA_FAST_PERIOD,
-    slow_period: int = SMA_SLOW_PERIOD,
-) -> SignalResponse:
-    if fast_period < 1 or slow_period <= fast_period:
-        raise ValueError("periods must be positive and fast_period must be less than slow_period")
-    if len(request.candles) <= slow_period:
-        raise ValueError(
-            f"at least {slow_period + 1} candles are required to detect an SMA crossover"
-        )
-
-    closes = [candle.close for candle in request.candles]
-    previous_fast = sum(closes[-fast_period - 1 : -1]) / fast_period
-    previous_slow = sum(closes[-slow_period - 1 : -1]) / slow_period
-    fast_sma = sum(closes[-fast_period:]) / fast_period
-    slow_sma = sum(closes[-slow_period:]) / slow_period
-
-    action: Literal["BUY", "SELL", "HOLD"] = "HOLD"
-    if previous_fast <= previous_slow and fast_sma > slow_sma:
-        action = "BUY"
-    elif previous_fast >= previous_slow and fast_sma < slow_sma:
-        action = "SELL"
-
-    return SignalResponse(
-        signal_id=uuid4(),
-        symbol=request.symbol,
-        action=action,
-        timestamp=request.candles[-1].timestamp,
-        confidence=1.0 if action != "HOLD" else 0.0,
-        fast_sma=fast_sma,
-        slow_sma=slow_sma,
+async def kafka_worker():
+    global kafka_status, error_details
+    
+    producer = AIOKafkaProducer(
+        bootstrap_servers=KAFKA_BROKER,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
+    
+    consumer = AIOKafkaConsumer(
+        "account.registration.result",
+        "market.candle.closed",
+        bootstrap_servers=KAFKA_BROKER,
+        group_id=KAFKA_GROUP_ID,
+        value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+        auto_offset_reset="latest"
+    )
+
+    try:
+        await producer.start()
+        await consumer.start()
+        kafka_status = "UP"
+        error_details = ""
+        logger.info(f"Успешно подключились к брокеру {KAFKA_BROKER}")
+
+        reg_msg = RegistrationRequest(
+            secretKey=KAFKA_SECRET_KEY,
+            studentId=STUDENT_ID,
+            strategyId=STRATEGY_ID,
+            serviceId=SERVICE_NAME
+        ).model_dump()
+        
+        await producer.send_and_wait("account.registration.request", reg_msg)
+        logger.info("Запрос на регистрацию отправлен.")
+
+        async for msg in consumer:
+            if msg.topic == "account.registration.result":
+                result = RegistrationResult(**msg.value)
+                if not result.isSuccessful:
+                    logger.error(f"Отказ в регистрации. Причина: {result.reason}")
+                    kafka_status = "DEGRADED"
+                    error_details = f"Registration rejected: {result.reason}"
+                else:
+                    logger.info("Успешная регистрация на платформе. Ждем свечи...")
+            
+            elif msg.topic == "market.candle.closed":
+                if kafka_status == "DEGRADED":
+                    continue
+
+                logger.info(f"Получена свеча: {msg.value}")
+
+    except Exception as e:
+        kafka_status = "DOWN"
+        error_details = str(e)
+        logger.error(f"Ошибка Kafka: {e}")
+    finally:
+        await consumer.stop()
+        await producer.stop()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    print(f"Сервис {SERVICE_NAME} v{APP_VERSION} запущен.")
+async def lifespan(app: FastAPI):
+    logger.info(f"Сервис {SERVICE_NAME} v{APP_VERSION} запускается...")
+    # Запускаем Kafka в фоне
+    task = asyncio.create_task(kafka_worker())
     yield
-    print(f"Сервис {SERVICE_NAME} корректно останавливается...")
+    task.cancel()
+    logger.info(f"Сервис {SERVICE_NAME} остановлен.")
 
 
 app = FastAPI(title=SERVICE_NAME, version=APP_VERSION, lifespan=lifespan)
@@ -144,16 +104,23 @@ app = FastAPI(title=SERVICE_NAME, version=APP_VERSION, lifespan=lifespan)
 
 @app.get("/health")
 async def health_check() -> JSONResponse:
+    overall_status = "UP" if kafka_status == "UP" else "DEGRADED"
+    
+    broker_info = {"status": kafka_status}
+    if error_details:
+        broker_info["details"] = error_details
+
     return JSONResponse(
         status_code=200,
         content={
-            "status": "UP",
+            "status": overall_status,
             "service": SERVICE_NAME,
             "version": APP_VERSION,
-            "components": {},
+            "components": {
+                "messageBroker": broker_info
+            },
         },
     )
-
 
 @app.post("/signals", response_model=SignalResponse)
 async def create_signal(request: SignalRequest) -> SignalResponse:
@@ -161,7 +128,6 @@ async def create_signal(request: SignalRequest) -> SignalResponse:
         return calculate_signal(request)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=PORT)
