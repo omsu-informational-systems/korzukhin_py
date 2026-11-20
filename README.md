@@ -18,20 +18,21 @@
 
 | Переменная | По умолчанию | Описание |
 |---|---|---|
-| `SERVICE_NAME` | `sma-crossover-strategy` | Имя сервиса |
-| `APP_VERSION` | `1.0.0` | Версия сервиса |
 | `PORT` | `8000` | Порт HTTP-сервера |
 | `SMA_FAST_PERIOD` | `10` | Период быстрой SMA |
 | `SMA_SLOW_PERIOD` | `30` | Период медленной SMA; должен быть больше Fast |
 | `KAFKA_BOOTSTRAP_SERVERS` | `omsu.7bits.it:9094` | Адрес Kafka-брокера |
 | `KAFKA_USERNAME` | — | Key (получить у преподавателя) |
 | `KAFKA_PASSWORD` | — | Secret (получить у преподавателя) |
-| `ACCOUNT_SECRET_KEY` | — | Уникальный ключ студента |
+| `KAFKA_GROUP_ID` | — | Id группы потребителя Kafka; у каждого студента свой |
 | `ACCOUNT_ID` | — | Уникальный идентификатор аккаунта |
 | `ACCOUNT_NAME` | — | Имя в интерфейсе платформы |
-| `GROUP_ID` | `МИБ-401` | Id учебной группы (не Kafka-группы) |
+| `GROUP_ID` | `МИБ-401` | Id учебной группы |
 | `STRATEGY_ID` | — | Идентификатор стратегии |
-| `KAFKA_GROUP_ID` | — | Id группы потребителя Kafka; у каждого студента свой |
+| `KAFKA_SECURITY_PROTOCOL` | `SASL_SSL` | Протокол подключения, зависит от платформы |
+| `KAFKA_SASL_MECHANISM` | `SCRAM-SHA-256` | Механизм аутентификации, зависит от платформы |
+| `KAFKA_AUTO_OFFSET_RESET` | `earliest` | Куда ставится offset, если нет сохранённого |
+| `KAFKA_ENABLE_AUTO_COMMIT` | `false` | Подтверждение вручную после успешной обработки |
 
 ## Структура проекта
 
