@@ -1,7 +1,7 @@
 # SMA Crossover Strategy Service
 
-* **Автор:** Корзухин Михаил Алексеевич / МИБ-401-О-02
-* **Назначение:** Микросервис стратегии SMA Crossover — формирует торговые сигналы на основе пересечения быстрой и медленной простых скользящих средних по ценам закрытия свечей.
+* **Автор:** Корзухин Михаил Алексеевич / МИБ-401
+* **Назначение:** Микросервис стратегии SMA Crossover — формирует торговые сигналы на основе пересечения быстрой и медленной простых скользящих средних по ценам закрытия свечей. Подключается к преподавательской платформе через Apache Kafka.
 * **Проектный документ:** [docs/project-description.md](docs/project-description.md)
 
 ## Требования к окружению
@@ -12,23 +12,69 @@
 
 ## Переменные окружения
 
+Переменные окружения задаются в файле `.env`. Пример конфигурации — в `.env.example`.
+
+Файл `.env` содержит локальные настройки и не добавляется в репозиторий. Файл `.env.example` хранится в репозитории как шаблон.
+
 | Переменная | По умолчанию | Описание |
-|---|---:|---|
+|---|---|---|
 | `SERVICE_NAME` | `sma-crossover-strategy` | Имя сервиса |
 | `APP_VERSION` | `1.0.0` | Версия сервиса |
 | `PORT` | `8000` | Порт HTTP-сервера |
 | `SMA_FAST_PERIOD` | `10` | Период быстрой SMA |
 | `SMA_SLOW_PERIOD` | `30` | Период медленной SMA; должен быть больше Fast |
+| `KAFKA_BOOTSTRAP_SERVERS` | `omsu.7bits.it:9094` | Адрес Kafka-брокера |
+| `KAFKA_USERNAME` | — | Key (получить у преподавателя) |
+| `KAFKA_PASSWORD` | — | Secret (получить у преподавателя) |
+| `ACCOUNT_SECRET_KEY` | — | Уникальный ключ студента |
+| `ACCOUNT_ID` | — | Уникальный идентификатор аккаунта |
+| `ACCOUNT_NAME` | — | Имя в интерфейсе платформы |
+| `GROUP_ID` | `МИБ-401` | Id учебной группы (не Kafka-группы) |
+| `STRATEGY_ID` | — | Идентификатор стратегии |
+| `KAFKA_GROUP_ID` | — | Id группы потребителя Kafka; у каждого студента свой |
 
-Пример без секретных значений — в `.env.example`. Секреты в Git не хранятся.
+## Структура проекта
+
+```
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── requirements.txt
+├── README.md
+├── app/
+│   ├── main.py                          # Точка входа
+│   └── src/
+│       ├── api/
+│       │   ├── router.py                # Эндпоинты /health и /signals
+│       │   └── schemas.py               # Pydantic-схемы запроса/ответа
+│       ├── core/
+│       │   └── config.py                # Конфигурация из переменных окружения
+│       ├── domain/
+│       │   ├── entities.py              # Схемы сообщений платформы
+│       │   └── sma.py                   # Алгоритм SMA Crossover
+│       └── infrastructure/
+│           └── kafka_worker.py          # Подключение к Kafka
+├── docs/
+│   └── project-description.md
+└── tests/
+    └── test_strategy.py
+```
 
 ## Сборка и запуск в Docker
 
-Все команды выполняются из папки `trading-strategy-service`.
+1. Создать файл `.env` в корне проекта, скопировав `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+2. Заполнить необходимые переменные окружения (особенно `KAFKA_USERNAME`, `KAFKA_PASSWORD`, `ACCOUNT_SECRET_KEY`).
+
+3. Собрать образ и запустить контейнер:
 
 ```bash
 docker build -t sma-crossover-strategy:latest .
-docker run --rm -d -p 8000:8000 --name sma-crossover-strategy sma-crossover-strategy:latest
+docker run --rm -d -p 8000:8000 --env-file .env --name sma-crossover-strategy sma-crossover-strategy:latest
 ```
 
 Проверка состояния:
@@ -60,7 +106,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Для проверки на коротком примере запустите контейнер с уменьшенными периодами:
 
 ```bash
-docker run --rm -d -p 8000:8000 -e SMA_FAST_PERIOD=2 -e SMA_SLOW_PERIOD=3 --name sma-crossover-strategy sma-crossover-strategy:latest
+docker run --rm -d -p 8000:8000 --env-file .env -e SMA_FAST_PERIOD=2 -e SMA_SLOW_PERIOD=3 --name sma-crossover-strategy sma-crossover-strategy:latest
 ```
 
 Отправьте запрос (4 свечи, ожидаемый сигнал — `BUY`):
@@ -91,12 +137,10 @@ docker run --rm -d -p 8000:8000 -e SMA_FAST_PERIOD=2 -e SMA_SLOW_PERIOD=3 --name
 }
 ```
 
-При стандартных периодах (Fast=10, Slow=30) передавайте не менее 31 свечи. Документация API: `http://localhost:8000/docs`.
+При стандартных периодах (Fast=10, Slow=30) передавайте не менее 31 свечи.
 
 ## Тесты
 
 ```bash
 docker run --rm sma-crossover-strategy:latest python -m unittest discover -s tests
 ```
-
-Подробные сценарии тестирования — в [docs/project-description.md](docs/project-description.md).
