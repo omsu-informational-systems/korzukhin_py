@@ -22,12 +22,12 @@
 | `SMA_FAST_PERIOD` | `10` | Период быстрой SMA |
 | `SMA_SLOW_PERIOD` | `30` | Период медленной SMA; должен быть больше Fast |
 | `KAFKA_BOOTSTRAP_SERVERS` | `omsu.7bits.it:9094` | Адрес Kafka-брокера |
-| `KAFKA_USERNAME` | — | Key (получить у преподавателя) |
-| `KAFKA_PASSWORD` | — | Secret (получить у преподавателя) |
-| `KAFKA_GROUP_ID` | — | Id группы потребителя Kafka; у каждого студента свой |
+| `KAFKA_USERNAME` | — | Key|
+| `KAFKA_PASSWORD` | — | Secret |
+| `KAFKA_GROUP_ID` | — | ID группы потребителя Kafka; у каждого студента свой |
 | `ACCOUNT_ID` | — | Уникальный идентификатор аккаунта |
 | `ACCOUNT_NAME` | — | Имя в интерфейсе платформы |
-| `GROUP_ID` | `МИБ-401` | Id учебной группы |
+| `GROUP_ID` | `МИБ-401` | ID учебной группы |
 | `STRATEGY_ID` | — | Идентификатор стратегии |
 | `KAFKA_SECURITY_PROTOCOL` | `SASL_SSL` | Протокол подключения, зависит от платформы |
 | `KAFKA_SASL_MECHANISM` | `SCRAM-SHA-256` | Механизм аутентификации, зависит от платформы |
