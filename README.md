@@ -4,6 +4,7 @@
 * **Назначение:** Микросервис стратегии SMA Crossover — формирует торговые сигналы на основе пересечения быстрой и медленной простых скользящих средних по ценам закрытия свечей. Подключается к преподавательской платформе через Apache Kafka.
 * **Проектный документ:** [docs/project-description.md](docs/project-description.md)
 * **Архитектурные схемы:** [docs/architecture.md](docs/architecture.md)
+* **План работ:** [GitHub Projects](https://github.com/orgs/omsu-informational-systems/projects/2/views/1)
 
 ## Требования к окружению
 
