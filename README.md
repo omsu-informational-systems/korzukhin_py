@@ -20,21 +20,30 @@
 
 | Переменная | По умолчанию | Описание |
 |---|---|---|
+| `SERVICE_NAME` | `sma-crossover-strategy` | Имя сервиса |
+| `APP_VERSION` | `1.0.0` | Версия сервиса |
 | `PORT` | `8000` | Порт HTTP-сервера |
 | `SMA_FAST_PERIOD` | `10` | Период быстрой SMA |
 | `SMA_SLOW_PERIOD` | `30` | Период медленной SMA; должен быть больше Fast |
 | `KAFKA_BOOTSTRAP_SERVERS` | `omsu.7bits.it:9094` | Адрес Kafka-брокера |
-| `KAFKA_USERNAME` | — | Key|
-| `KAFKA_PASSWORD` | — | Secret |
-| `KAFKA_GROUP_ID` | — | ID группы потребителя Kafka; у каждого студента свой |
+| `KAFKA_SECURITY_PROTOCOL` | `SASL_SSL` | Протокол подключения Kafka |
+| `KAFKA_SASL_MECHANISM` | `SCRAM-SHA-256` | Механизм аутентификации Kafka |
+| `KAFKA_AUTO_OFFSET_RESET` | `earliest` | Начальная позиция чтения при отсутствии сохранённого offset |
+| `KAFKA_USERNAME` | — | Имя пользователя Kafka |
+| `KAFKA_PASSWORD` | — | Пароль Kafka |
+| `ACCOUNT_SECRET_KEY` | — | Секрет платформы; хранить только в `.env` |
 | `ACCOUNT_ID` | — | Уникальный идентификатор аккаунта |
-| `ACCOUNT_NAME` | — | Имя в интерфейсе платформы |
-| `GROUP_ID` | `МИБ-401` | ID учебной группы |
-| `STRATEGY_ID` | — | Идентификатор стратегии |
-| `KAFKA_SECURITY_PROTOCOL` | `SASL_SSL` | Протокол подключения, зависит от платформы |
-| `KAFKA_SASL_MECHANISM` | `SCRAM-SHA-256` | Механизм аутентификации, зависит от платформы |
-| `KAFKA_AUTO_OFFSET_RESET` | `earliest` | Куда ставится offset, если нет сохранённого |
-| `KAFKA_ENABLE_AUTO_COMMIT` | `false` | Подтверждение вручную после успешной обработки |
+| `ACCOUNT_NAME` | пустая строка | Имя аккаунта в интерфейсе платформы |
+| `GROUP_ID` | — | Идентификатор учебной группы |
+| `STRATEGY_ID` | — | Идентификатор стратегии на платформе |
+| `KAFKA_GROUP_ID` | — | ID группы потребителя Kafka; у каждого студента свой |
+| `KAFKA_TOPIC_REG_REQUEST` | `account.registration.request` | Топик запросов регистрации |
+| `KAFKA_TOPIC_REG_RESULT` | `account.registration.result` | Топик результатов регистрации |
+| `KAFKA_TOPIC_CANDLE_CLOSED` | `market.candle.closed` | Топик закрытых свечей |
+| `KAFKA_TOPIC_RECOMMENDATION` | `strategy.recommendation.created` | Топик торговых рекомендаций |
+| `KAFKA_TOPIC_HEARTBEAT` | `account.service.heartbeat` | Топик heartbeat |
+
+Автоматический commit отключён в коде: offset подтверждается вручную после обработки события, чтобы необработанные сообщения могли быть доставлены повторно.
 
 ## Структура проекта
 

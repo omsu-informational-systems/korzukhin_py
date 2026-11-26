@@ -69,8 +69,8 @@ class KafkaWorker:
     def _base_kafka_cfg(self) -> dict[str, Any]:
         return {
             "bootstrap.servers": self.cfg.bootstrap_servers,
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanism": "SCRAM-SHA-256",
+            "security.protocol": self.cfg.kafka_security_protocol,
+            "sasl.mechanism": self.cfg.kafka_sasl_mechanism,
             "sasl.username": self.cfg.kafka_username,
             "sasl.password": self.cfg.kafka_password,
             "enable.ssl.certificate.verification": True,
@@ -84,7 +84,7 @@ class KafkaWorker:
         return Consumer({
             **self._base_kafka_cfg(),
             "group.id": f"{self.cfg.kafka_group_id}.{suffix}",
-            "auto.offset.reset": "earliest",
+            "auto.offset.reset": self.cfg.kafka_auto_offset_reset,
             "enable.auto.commit": False,
             "allow.auto.create.topics": False,
         })

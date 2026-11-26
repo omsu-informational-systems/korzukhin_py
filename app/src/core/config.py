@@ -24,6 +24,9 @@ class AppConfig:
 
     # Kafka — подключение
     bootstrap_servers: str
+    kafka_security_protocol: str
+    kafka_sasl_mechanism: str
+    kafka_auto_offset_reset: str
     kafka_username: str
     kafka_password: str
 
@@ -56,6 +59,15 @@ class AppConfig:
             sma_slow_period=slow,
             bootstrap_servers=os.environ.get(
                 "KAFKA_BOOTSTRAP_SERVERS", "omsu.7bits.it:9094"
+            ),
+            kafka_security_protocol=os.environ.get(
+                "KAFKA_SECURITY_PROTOCOL", "SASL_SSL"
+            ),
+            kafka_sasl_mechanism=os.environ.get(
+                "KAFKA_SASL_MECHANISM", "SCRAM-SHA-256"
+            ),
+            kafka_auto_offset_reset=os.environ.get(
+                "KAFKA_AUTO_OFFSET_RESET", "earliest"
             ),
             kafka_username=_require("KAFKA_USERNAME"),
             kafka_password=_require("KAFKA_PASSWORD"),
